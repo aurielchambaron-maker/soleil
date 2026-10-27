@@ -369,6 +369,7 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
         ac=new (window.AudioContext||window.webkitAudioContext)();
         // iOS : un tampon muet joué pendant le toucher déverrouille le contexte
         const s=ac.createBufferSource(); s.buffer=ac.createBuffer(1,1,22050); s.connect(ac.destination); s.start(0);
+        decoderVoix();
       }
       if(ac.state!=='running') ac.resume();
     }catch(e){ ac=null; }
@@ -389,8 +390,32 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
     if(voixMorte) return;
     try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance('a'); u.lang='fr-FR'; u.volume=0; speechSynthesis.speak(u); }catch(e){ voixMorte=true; }
   }
+  // Voix enregistrée (Luna) : quatre sons téléchargés dès l'ouverture, décodés quand l'audio est débloqué,
+  // puis joués sans délai. La synthèse vocale ne sert plus qu'en secours.
+  const SONS={'Un':'un','Deux':'deux','Trois':'trois','Soleil !':'soleil'}, brutVoix={}, tamponsVoix={};
+  let sourceVoix=null;
+  Object.keys(SONS).forEach(mot=>{
+    try{ fetch('sons/'+SONS[mot]+'.mp3').then(r=>r.ok?r.arrayBuffer():null).then(b=>{ if(b){ brutVoix[mot]=b; decoderVoix(); } }).catch(()=>{}); }catch(e){}
+  });
+  function decoderVoix(){
+    if(!ac) return;
+    Object.keys(brutVoix).forEach(mot=>{
+      const b=brutVoix[mot]; delete brutVoix[mot];
+      try{ ac.decodeAudioData(b, t=>{ tamponsVoix[mot]=t; }, ()=>{}); }catch(e){}
+    });
+  }
+  function jouerVoix(t){
+    const c=ac, tampon=tamponsVoix[t];
+    if(!c || !tampon || c.state!=='running') return false;
+    try{
+      if(sourceVoix) sourceVoix.stop(); // le mot précédent s'efface : la voix reste calée sur l'écran
+      const s=c.createBufferSource(); s.buffer=tampon; s.connect(c.destination); s.start(); sourceVoix=s;
+      return true;
+    }catch(e){ return false; }
+  }
   const parler = t => {
     if(!voixOn) return;
+    if(jouerVoix(t)) return;
     if(voixMorte){ bip(t); return; }
     try{
       // On coupe la phrase en retard : la voix reste calée sur le mot affiché.
