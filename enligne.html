@@ -35,7 +35,7 @@ header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
 h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:var(--soleil);line-height:1}
 .stats{font-size:.85rem;color:var(--craie-dim);text-align:right;font-variant-numeric:tabular-nums}
 .stats b{color:var(--craie)}
-#voix{background:none;border:1.5px dashed var(--craie-dim);color:var(--craie-dim);border-radius:8px;font:inherit;font-size:.8rem;padding:2px 8px;cursor:pointer}
+#voix,.mini{background:none;border:1.5px dashed var(--craie-dim);color:var(--craie-dim);border-radius:8px;font:inherit;font-size:.8rem;padding:2px 8px;cursor:pointer}
 #voix[aria-pressed="true"]{color:var(--craie);border-color:var(--craie)}
 
 .terrain{flex:1;position:relative;min-height:0;margin-block:6px;border-radius:14px;overflow:hidden;
@@ -108,7 +108,13 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 .voile p{margin:0;max-width:30ch;color:var(--craie);line-height:1.45}
 .voile .petit{font-size:.85rem;color:var(--craie-dim)}
 .btn{font:700 1.05rem var(--f-body);background:var(--soleil);color:var(--bitume);border:0;border-radius:999px;padding:12px 28px;cursor:pointer}
-.btn:focus-visible,#avancer:focus-visible,#voix:focus-visible{outline:3px solid var(--craie);outline-offset:3px}
+.btn:focus-visible,#avancer:focus-visible,#voix:focus-visible,.mini:focus-visible{outline:3px solid var(--craie);outline-offset:3px}
+.mini{color:var(--craie);border-color:var(--craie);margin-left:6px}
+a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box}
+.btn.second{background:transparent;color:var(--craie);border:2px solid var(--craie);padding:10px 22px}
+.choix{display:flex;flex-direction:column;gap:10px;width:min(100%,260px)}
+/* Menu pause : au-dessus de tout le terrain */
+.voile.pause{z-index:4;background:rgba(35,39,43,.96)}
 
 .commandes{padding-block:6px 14px;display:flex;flex-direction:column;align-items:center;gap:6px}
 #avancer{width:min(100%,360px);height:84px;border-radius:999px;border:3px solid var(--craie);background:transparent;color:var(--craie);
@@ -149,7 +155,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 <body>
 <header>
   <h1>1, 2, 3 Soleil</h1>
-  <div class="stats"><span id="info">En ligne</span><br><button id="voix" aria-pressed="true">Son</button></div>
+  <div class="stats"><span id="info">En ligne</span><br><button id="voix" aria-pressed="true">Son</button><button id="bPause" class="mini" hidden>Pause</button></div>
 </header>
 
 <main class="terrain" id="terrain">
@@ -251,7 +257,17 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
     <button class="btn" id="action" hidden></button>
     <button class="btn second" id="action2" hidden></button>
     <p class="statut" id="statut"></p>
-    <a href="./" id="solo">Jouer seul</a>
+    <a href="./" id="solo">Menu principal</a>
+  </div>
+
+  <div class="voile pause" id="pause" hidden>
+    <h2>Pause</h2>
+    <p id="pTexte"></p>
+    <div class="choix">
+      <button class="btn" id="pReprendre">Reprendre</button>
+      <button class="btn second" id="pQuitter">Quitter la partie</button>
+      <button class="btn second" id="pMenu">Menu principal</button>
+    </div>
   </div>
 </main>
 
@@ -460,6 +476,8 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 
   function tic(){
     const now=performance.now();
+    const bp=$('bPause'), cache=phase==='menu'; if(bp.hidden!==cache) bp.hidden=cache;
+    if(phase==='menu' && pauseOuverte) fermerPause();
     if((phase==='attente'||phase==='fin') && now-dernierLa>1000){ dernierLa=now; envoyer({t:'la', nom:moi.nom, a:monArrivee, ph:spectateur?'attente':phase}); }
     if(phase==='encours' && now-dernierLa>1500){ dernierLa=now; envoyer({t:'pos', p:+moi.p.toFixed(2), m:marche?1:0}); }
     // Le meneur parle au moins toutes les 1,5 s : 3 s de silence suffisent pour passer la poupée au suivant
@@ -790,14 +808,32 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
     requestAnimationFrame(boucle);
   }
 
-  function appuyer(e){ if(e) e.preventDefault(); if(moi.etat!=='joue' || phase!=='encours') return; if(appui) return; appui=true; btn.classList.add('appuye'); }
+  // En ligne, on ne peut pas arrêter les autres : le menu s'ouvre par-dessus une course qui continue, pion immobile
+  let pauseOuverte=false;
+  function ouvrirPause(){
+    if(phase==='menu' || pauseOuverte) return;
+    pauseOuverte=true; relacher();
+    $('pTexte').textContent = phase==='encours' ? 'La course continue sans toi : ton pion reste immobile tant que ce menu est ouvert.'
+      : 'Tu restes dans la salle tant que tu ne la quittes pas.';
+    $('pause').hidden=false; $('pReprendre').focus();
+  }
+  function fermerPause(){ pauseOuverte=false; $('pause').hidden=true; }
+  $('bPause').addEventListener('click',ouvrirPause);
+  $('pReprendre').addEventListener('click',fermerPause);
+  $('pQuitter').addEventListener('click',()=>{ fermerPause(); menu(); });
+  $('pMenu').addEventListener('click',()=>{ envoyer({t:'bye'}); location.href='./'; });
+
+  function appuyer(e){ if(e) e.preventDefault(); if(moi.etat!=='joue' || phase!=='encours' || pauseOuverte) return; if(appui) return; appui=true; btn.classList.add('appuye'); }
   function relacher(){ if(!appui) return; appui=false; btn.classList.remove('appuye'); }
 
   btn.addEventListener('pointerdown',e=>{ appuyer(e); try{btn.setPointerCapture(e.pointerId);}catch(_){} });
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>btn.addEventListener(ev,relacher));
   btn.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
   btn.addEventListener('contextmenu',e=>e.preventDefault());
-  addEventListener('keydown',e=>{ if(e.code==='Space' && e.target!==$('pseudo')){ e.preventDefault(); if(!e.repeat) appuyer(); } });
+  addEventListener('keydown',e=>{
+    if(e.code==='Space' && e.target!==$('pseudo')){ e.preventDefault(); if(!e.repeat) appuyer(); }
+    if(e.key==='Escape'||(e.key==='p' && e.target!==$('pseudo'))){ if(pauseOuverte) fermerPause(); else ouvrirPause(); }
+  });
   addEventListener('keyup',e=>{ if(e.code==='Space') relacher(); });
   addEventListener('blur',relacher);
   addEventListener('resize',()=>{ mesurer(); joueurs.forEach(j=>placer(j,j===moi?j.p:j.vueP)); if(!joueurs.size) placer(moi,0); });

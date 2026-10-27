@@ -35,7 +35,7 @@ header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
 h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:var(--soleil);line-height:1}
 .stats{font-size:.85rem;color:var(--craie-dim);text-align:right;font-variant-numeric:tabular-nums}
 .stats b{color:var(--craie)}
-#voix{background:none;border:1.5px dashed var(--craie-dim);color:var(--craie-dim);border-radius:8px;font:inherit;font-size:.8rem;padding:2px 8px;cursor:pointer}
+#voix,.mini{background:none;border:1.5px dashed var(--craie-dim);color:var(--craie-dim);border-radius:8px;font:inherit;font-size:.8rem;padding:2px 8px;cursor:pointer}
 #voix[aria-pressed="true"]{color:var(--craie);border-color:var(--craie)}
 
 .terrain{flex:1;position:relative;min-height:0;margin-block:6px;border-radius:14px;overflow:hidden;
@@ -108,7 +108,13 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 .voile p{margin:0;max-width:30ch;color:var(--craie);line-height:1.45}
 .voile .petit{font-size:.85rem;color:var(--craie-dim)}
 .btn{font:700 1.05rem var(--f-body);background:var(--soleil);color:var(--bitume);border:0;border-radius:999px;padding:12px 28px;cursor:pointer}
-.btn:focus-visible,#avancer:focus-visible,#voix:focus-visible{outline:3px solid var(--craie);outline-offset:3px}
+.btn:focus-visible,#avancer:focus-visible,#voix:focus-visible,.mini:focus-visible{outline:3px solid var(--craie);outline-offset:3px}
+.mini{color:var(--craie);border-color:var(--craie);margin-left:6px}
+a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box}
+.btn.second{background:transparent;color:var(--craie);border:2px solid var(--craie);padding:10px 22px}
+.choix{display:flex;flex-direction:column;gap:10px;width:min(100%,260px)}
+/* Menu pause : au-dessus de tout le terrain */
+.voile.pause{z-index:4;background:rgba(35,39,43,.96)}
 
 .commandes{padding-block:6px 14px;display:flex;flex-direction:column;align-items:center;gap:6px}
 #avancer{width:min(100%,360px);height:84px;border-radius:999px;border:3px solid var(--craie);background:transparent;color:var(--craie);
@@ -121,7 +127,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 <body>
 <header>
   <h1>1, 2, 3 Soleil</h1>
-  <div class="stats">Record : <b id="record">—</b><br><button id="voix" aria-pressed="true">Son</button></div>
+  <div class="stats">Record : <b id="record">—</b><br><button id="voix" aria-pressed="true">Son</button><button id="bPause" class="mini" hidden>Pause</button></div>
 </header>
 
 <main class="terrain" id="terrain">
@@ -202,11 +208,24 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
   <div class="annonce" id="annonce"></div>
 
   <div class="voile" id="voile">
-    <h2 id="vTitre">Prêt ?</h2>
+    <h2 id="vTitre">1, 2, 3 Soleil</h2>
     <p id="vTexte">Garde le doigt appuyé pour avancer. Lâche dès que la poupée se retourne. Elle peut le faire à « un », « deux », « trois » ou « soleil ».</p>
     <input id="pseudo" maxlength="10" placeholder="Ton pseudo" autocomplete="off" aria-label="Ton pseudo">
-    <button class="btn" id="jouer">Jouer</button>
-    <p class="petit"><a href="enligne.html" style="color:var(--soleil)">Jouer en ligne, jusqu’à 20 →</a></p>
+    <div class="choix">
+      <button class="btn" id="jouer">Jouer seul</button>
+      <a class="btn second" id="enLigne" href="enligne.html">Jouer en ligne (jusqu’à 20)</a>
+      <button class="btn second" id="vMenu" hidden>Menu principal</button>
+    </div>
+  </div>
+
+  <div class="voile pause" id="pause" hidden>
+    <h2>Pause</h2>
+    <p>La partie est figée : la poupée t’attend.</p>
+    <div class="choix">
+      <button class="btn" id="pReprendre">Reprendre</button>
+      <button class="btn second" id="pRecommencer">Recommencer</button>
+      <button class="btn second" id="pMenu">Menu principal</button>
+    </div>
   </div>
 </main>
 
@@ -360,7 +379,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 
   function eliminer(){
     if(etat==='mort'||etat==='gagne') return;
-    etat='mort'; stop(); relacher(); joueur.classList.remove('marche'); marche=false;
+    etat='mort'; stop(); relacher(); majPause(); joueur.classList.remove('marche'); marche=false;
     compteur.classList.add('regarde'); annonce.textContent='';
     const fusil=$('fusil'), trait=$('trait'), T=terrain.getBoundingClientRect();
     const gx=fusil.offsetLeft+12, gy=fusil.offsetTop+13;
@@ -380,7 +399,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
   }
 
   function gagner(){
-    etat='gagne'; stop(); relacher();
+    etat='gagne'; stop(); relacher(); majPause();
     const t=(performance.now()-debut)/1000;
     let msg=`Ligne franchie en ${t.toFixed(1)} s.`;
     if(!record || t<record){ record=t; try{localStorage.setItem('soleil-record',String(t));}catch(e){} majRecord(); msg+=' Nouveau record !'; }
@@ -390,7 +409,34 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 
   function fin(titre,texte,perdu){
     vTitre.textContent=titre; vTitre.className=perdu?'perdu':''; vTexte.textContent=texte;
-    $('jouer').textContent='Rejouer'; voile.hidden=false;
+    $('jouer').textContent='Rejouer'; $('enLigne').hidden=true; $('vMenu').hidden=false; voile.hidden=false;
+  }
+
+  // Pause : seulement pendant la course. Tout s'arrête, chrono compris ; à la reprise la poupée recommence à compter.
+  const REGLE=vTexte.textContent;
+  let enPause=false, pauseDebut=0;
+  const enCourse=()=>etat==='compte'||etat==='regarde'||etat==='surveille';
+  // Le bouton n'existe que pendant la course ; mis à jour à chaque changement d'état, pas dans la boucle d'animation
+  const majPause=()=>{ $('bPause').hidden=!(enCourse() && !enPause); };
+  function pause(){
+    if(enPause || !enCourse()) return;
+    enPause=true; majPause(); pauseDebut=performance.now(); stop(); relacher();
+    try{ if(window.speechSynthesis) speechSynthesis.cancel(); }catch(e){}
+    $('pause').hidden=false; $('pReprendre').focus();
+  }
+  function reprendre(){
+    if(!enPause) return;
+    enPause=false; debut+=performance.now()-pauseDebut; $('pause').hidden=true;
+    compteur.classList.remove('regarde'); annonce.textContent=''; annonce.className='annonce'; etat='compte'; majPause();
+    nouvelleSerie();
+  }
+  function menuPrincipal(){
+    enPause=false; $('pause').hidden=true; stop(); relacher(); etat='attente'; progres=0;
+    joueur.classList.remove('mort','tombe','marche'); marche=false; compteur.classList.remove('regarde');
+    $('fusil').className='fusil'; $('fusil').style.transform=''; $('trait').className='trait';
+    annonce.textContent=''; annonce.className='annonce'; placer();
+    vTitre.textContent='1, 2, 3 Soleil'; vTitre.className=''; vTexte.textContent=REGLE;
+    $('jouer').textContent='Jouer seul'; $('enLigne').hidden=false; $('vMenu').hidden=true; voile.hidden=false; majPause();
   }
 
   function mesurer(){ course = terrain.clientHeight - 6 - 136 - 21; }
@@ -402,7 +448,7 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
     try{ localStorage.setItem('soleil-pseudo',nom); }catch(e){}
     nommer(nom);
     $('pseudo').blur();
-    stop(); progres=0; etat='compte'; appui=false; dernierArret=-1;
+    stop(); progres=0; etat='compte'; appui=false; dernierArret=-1; enPause=false; $('pause').hidden=true; majPause();
     joueur.classList.remove('mort','tombe'); compteur.classList.remove('regarde');
     $('fusil').className='fusil'; $('fusil').style.transform=''; $('trait').className='trait';
     voile.hidden=true; annonce.textContent=''; mesurer(); placer();
@@ -425,14 +471,25 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
     requestAnimationFrame(boucle);
   }
 
-  function appuyer(e){ if(e) e.preventDefault(); if(etat==='mort'||etat==='gagne'||etat==='attente') return; if(appui) return; appui=true; btn.classList.add('appuye'); }
+  function appuyer(e){ if(e) e.preventDefault(); if(etat==='mort'||etat==='gagne'||etat==='attente'||enPause) return; if(appui) return; appui=true; btn.classList.add('appuye'); }
   function relacher(){ if(!appui) return; appui=false; btn.classList.remove('appuye'); }
 
   btn.addEventListener('pointerdown',e=>{ appuyer(e); try{btn.setPointerCapture(e.pointerId);}catch(_){} });
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>btn.addEventListener(ev,relacher));
   btn.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
   btn.addEventListener('contextmenu',e=>e.preventDefault());
-  addEventListener('keydown',e=>{ if(e.code==='Space'){ e.preventDefault(); if(!e.repeat) appuyer(); } });
+  addEventListener('keydown',e=>{
+    if(e.code==='Space' && e.target!==$('pseudo')){ e.preventDefault(); if(!e.repeat) appuyer(); }
+    if(e.key==='Escape'||(e.key==='p' && e.target!==$('pseudo'))){ if(enPause) reprendre(); else pause(); }
+  });
+  // Téléphone : changer d'appli ou verrouiller l'écran met la partie en pause
+  document.addEventListener('visibilitychange',()=>{ if(document.hidden) pause(); });
+  const bPause=$('bPause');
+  bPause.addEventListener('click',pause);
+  $('pReprendre').addEventListener('click',reprendre);
+  $('pRecommencer').addEventListener('click',()=>{ lancer(); });
+  $('pMenu').addEventListener('click',menuPrincipal);
+  $('vMenu').addEventListener('click',menuPrincipal);
   addEventListener('keyup',e=>{ if(e.code==='Space') relacher(); });
   addEventListener('blur',relacher);
   addEventListener('resize',()=>{mesurer();placer();});
