@@ -578,7 +578,8 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
     bandeau.hidden=true; voile.hidden=false;
   }
   // En public, le lien à partager est simplement celui du jeu : les amis tombent dans la même salle d'attente
-  const lienSalle=()=>location.origin+location.pathname+(mode==='public'?'':'?salle='+codePrive+(relais?'&b='+relais:''));
+  // Dans l'application Android, la page vit à une adresse interne : les liens partagés pointent vers la version web (SOLEIL_BASE_LIEN)
+  const lienSalle=()=>(window.SOLEIL_BASE_LIEN||location.origin+location.pathname)+(mode==='public'?'':'?salle='+codePrive+(relais?'&b='+relais:''));
 
   function menu(){
     if(sujet){ envoyer({t:'bye'}); abonner(null); }
