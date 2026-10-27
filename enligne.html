@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#23272b">
+<title>1, 2, 3 Soleil en ligne</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gochi+Hand&family=Baloo+2:wght@500;700&display=swap">
+<style>
+/* Réinitialisation de base */
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{height:100%}
+body{margin:0;font-size:14px}
+img{max-width:100%}
+[hidden]{display:none!important}
+
+/* Cour de récré : bitume sombre, traits à la craie, un seul jaune soleil. Écran unique vertical. */
+:root{
+  --bitume:#23272b; --bitume-2:#2e3338; --craie:#eef0e8; --craie-dim:#9aa19a;
+  --soleil:#ffd23f; --rouge:#ff3b30; --contour:#15171a; --sol-haut:#3b4046; --sol-bas:#545b62; --mur:#6a5a73; --mur-ombre:#4d4155; --pion:#ffd23f; --pion-ombre:#d9a514; --bonnet:#e5484d; --porcelaine:#ece4da; --cheveux:#1b1512;
+  --f-display:"Gochi Hand","Comic Sans MS",cursive;
+  --f-body:"Baloo 2",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+/* iPhone : 100 % inclut la zone sous la barre de Safari, ce qui coupe le bouton ; dvh suit l'écran réellement visible */
+@supports (height:100dvh){html,body{height:100dvh}}
+body{background:var(--bitume);color:var(--craie);font-family:var(--f-body);margin:0;
+  display:flex;flex-direction:column;overflow:hidden;touch-action:none;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+header{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-block:10px 4px}
+h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:var(--soleil);line-height:1}
+.stats{font-size:.85rem;color:var(--craie-dim);text-align:right;font-variant-numeric:tabular-nums}
+.stats b{color:var(--craie)}
+#voix{background:none;border:1.5px dashed var(--craie-dim);color:var(--craie-dim);border-radius:8px;font:inherit;font-size:.8rem;padding:2px 8px;cursor:pointer}
+#voix[aria-pressed="true"]{color:var(--craie);border-color:var(--craie)}
+
+.terrain{flex:1;position:relative;min-height:0;margin-block:6px;border-radius:14px;overflow:hidden;
+  background:radial-gradient(120% 60% at 50% 100%,rgba(255,255,255,.06),transparent 70%),linear-gradient(180deg,var(--sol-haut),var(--sol-bas));
+  border:3px solid var(--contour)}
+.mur{position:absolute;top:0;left:0;right:0;height:116px;border-bottom:4px solid var(--contour);box-shadow:0 8px 0 rgba(0,0,0,.22);
+  background:
+    repeating-linear-gradient(90deg,transparent 0 46px,rgba(0,0,0,.22) 46px 49px),
+    repeating-linear-gradient(0deg,transparent 0 21px,rgba(0,0,0,.28) 21px 24px),
+    linear-gradient(180deg,var(--mur),var(--mur-ombre))}
+.mur::after{content:"";position:absolute;left:0;right:0;top:0;height:10px;background:rgba(255,255,255,.08)}
+
+/* Poupée : deux faces (dos / visage) qui pivotent */
+.compteur{position:absolute;top:6px;left:50%;width:100px;height:112px;margin-left:-50px;perspective:400px;z-index:2}
+.pivot{position:relative;width:100%;height:100%;transform-style:preserve-3d;transition:transform .12s cubic-bezier(.5,0,.2,1)}
+.compteur.regarde .pivot{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.avant{transform:rotateY(180deg)}
+.face svg{width:100%;height:100%;display:block}
+.compteur.regarde .pupille{animation:lueur 1s ease-in-out infinite alternate}
+@keyframes lueur{from{opacity:.55}to{opacity:1}}
+.compteur.regarde{animation:tremble .12s linear 3}
+@keyframes tremble{0%,100%{translate:0 0}50%{translate:2px 0}}
+
+.arrivee{position:absolute;top:128px;left:10px;right:10px;height:8px;background:var(--soleil);border:3px solid var(--contour);border-radius:5px;box-shadow:0 3px 0 rgba(0,0,0,.3)}
+.arrivee span{position:absolute;right:4px;top:12px;font:400 1.05rem var(--f-display);color:var(--soleil);letter-spacing:.05em;text-shadow:0 2px 0 var(--contour)}
+.depart{position:absolute;bottom:18px;left:10px;right:10px;height:6px;background:var(--craie);border:3px solid var(--contour);border-radius:5px;opacity:.9}
+.joueur{position:absolute;left:50%;bottom:14px;width:64px;height:82px;margin-left:-32px;z-index:1;
+  transform-origin:50% 100%;will-change:transform;transform:translate3d(0,0,0)}
+.joueur svg{width:100%;height:100%;display:block;overflow:visible}
+.joueur .jg,.joueur .jd,.joueur .haut{transform-box:fill-box;transform-origin:50% 0}
+.joueur.marche .jg{animation:pas .28s ease-in-out infinite alternate}
+.joueur.marche .jd{animation:pas .28s ease-in-out infinite alternate-reverse}
+.joueur.marche .haut{animation:rebond .14s ease-in-out infinite alternate}
+@keyframes pas{from{transform:translateY(0)}to{transform:translateY(-5px)}}
+@keyframes rebond{from{transform:translateY(0)}to{transform:translateY(-2px)}}
+.joueur .perso{transform-box:view-box;transform-origin:32px 78px}
+.joueur.tombe .perso{animation:chute .55s cubic-bezier(.5,0,.75,1.4) forwards}
+@keyframes chute{0%{transform:rotate(0)}15%{transform:rotate(-12deg)}100%{transform:rotate(90deg)}}
+.joueur .flaque{transform-box:fill-box;transform-origin:50% 50%;transform:scale(0)}
+.joueur.tombe .flaque{animation:flaque 1.6s .45s ease-out forwards}
+@keyframes flaque{to{transform:scale(1)}}
+.joueur .yeux-x{display:none}
+.joueur.mort .yeux-x{display:inline}.joueur.mort .yeux{display:none}
+.fusil{position:absolute;top:66px;left:calc(50% + 22px);width:84px;height:26px;z-index:2;pointer-events:none;
+  transform-origin:12px 13px;opacity:0;transform:translateX(-20px) rotate(0deg)}
+.fusil.sorti{opacity:1;transition:opacity .1s,transform .35s cubic-bezier(.3,1.4,.6,1)}
+.fusil svg{width:100%;height:100%;display:block;overflow:visible}
+.fusil .flash{opacity:0}
+.fusil.tir .flash{animation:flash .18s linear}
+@keyframes flash{0%,100%{opacity:0}20%,60%{opacity:1}}
+.fusil.recul{animation:recul .2s ease-out}
+.trait{position:absolute;height:3px;transform-origin:0 50%;z-index:2;pointer-events:none;border-radius:2px;
+  background:linear-gradient(90deg,rgba(255,240,180,0),#fff6c8 70%,var(--soleil));opacity:0}
+.trait.vu{animation:trait .22s linear forwards}
+@keyframes trait{0%{opacity:1}100%{opacity:0}}
+#pseudo{font:600 1rem var(--f-body);background:transparent;color:var(--craie);border:2px dashed var(--craie-dim);border-radius:10px;padding:10px 14px;width:min(100%,240px);text-align:center;box-sizing:border-box}
+#pseudo:focus{outline:none;border-color:var(--soleil)}
+#pseudo{-webkit-user-select:text;user-select:text;touch-action:manipulation}
+#pseudo::placeholder{color:var(--craie-dim)}
+.annonce{position:absolute;left:0;right:0;top:46%;text-align:center;font-family:var(--f-display);font-size:clamp(3rem,16vw,5.5rem);
+  line-height:1;color:var(--craie);pointer-events:none;contain:layout paint}
+.annonce.chaud{color:var(--soleil)}
+.annonce.alerte{color:var(--rouge)}
+
+.voile{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  background:rgba(35,39,43,.93);text-align:center;padding:24px;z-index:3}
+.voile h2{font-family:var(--f-display);font-weight:400;font-size:2.6rem;margin:0;color:var(--soleil);line-height:1}
+.voile h2.perdu{color:var(--rouge)}
+.voile p{margin:0;max-width:30ch;color:var(--craie);line-height:1.45}
+.voile .petit{font-size:.85rem;color:var(--craie-dim)}
+.btn{font:700 1.05rem var(--f-body);background:var(--soleil);color:var(--bitume);border:0;border-radius:999px;padding:12px 28px;cursor:pointer}
+.btn:focus-visible,#avancer:focus-visible,#voix:focus-visible{outline:3px solid var(--craie);outline-offset:3px}
+
+.commandes{padding-block:6px 14px;display:flex;flex-direction:column;align-items:center;gap:6px}
+#avancer{width:min(100%,360px);height:84px;border-radius:999px;border:3px solid var(--craie);background:transparent;color:var(--craie);
+  font:700 1.2rem var(--f-body);touch-action:none;cursor:pointer}
+#avancer.appuye{background:var(--craie);color:var(--bitume)}
+.aide{font-size:.8rem;color:var(--craie-dim)}
+@media (prefers-reduced-motion:reduce){.fusil.sorti{transition:none}.joueur.marche .jg,.joueur.marche .jd,.joueur.marche .haut{animation:none}.pivot{transition:none}.compteur.regarde,.compteur.regarde .pupille{animation:none}}
+
+/* En ligne : jusqu'à 20 couloirs ; les autres pions sont plus petits, recolorés, et sans animation de pas (fluidité sur téléphone) */
+.joueur.moi{z-index:2}
+.joueur.autre .jg,.joueur.autre .jd,.joueur.autre .haut{animation:none!important}
+.joueur.absent{display:none}
+.lien{font:600 .85rem var(--f-body);color:var(--craie);background:var(--bitume-2);border:2px dashed var(--craie-dim);border-radius:10px;padding:8px 12px;max-width:100%;box-sizing:border-box;word-break:break-all;-webkit-user-select:text;user-select:text}
+.rangee{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.choix{display:flex;flex-direction:column;gap:10px;width:min(100%,260px)}
+.btn.second{background:transparent;color:var(--craie);border:2px solid var(--craie);padding:10px 22px}
+.btn:disabled{opacity:.45;cursor:default}
+.statut{font-size:.85rem;color:var(--craie-dim);margin:0}
+.statut.ok{color:var(--soleil)}
+.statut.ko{color:var(--rouge)}
+.voile{overflow:auto;justify-content:safe center}
+.voile a{color:var(--craie-dim);font-size:.85rem}
+.voile .gros{font:400 3.6rem var(--f-display);color:var(--soleil);line-height:1;margin:0}
+.liste{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:330px;max-height:26vh;overflow:auto}
+.liste li{font:600 .8rem var(--f-body);background:var(--bitume-2);border-radius:999px;padding:3px 10px;color:var(--craie)}
+.liste li.moi{background:var(--soleil);color:var(--bitume)}
+.classement{list-style:none;margin:0;padding:0;width:min(100%,300px);max-height:36vh;overflow:auto;text-align:left}
+.classement li{display:flex;gap:8px;padding:4px 8px;border-bottom:1px dashed rgba(255,255,255,.12);font-size:.9rem;font-variant-numeric:tabular-nums}
+.classement li b{width:2.2em;flex:none;color:var(--craie-dim);font-weight:600}
+.classement li span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.classement li i{font-style:normal;color:var(--craie-dim)}
+.classement li.moi,.classement li.moi b,.classement li.moi i{color:var(--soleil);font-weight:700}
+.bandeau{position:absolute;left:10px;right:10px;bottom:34px;text-align:center;font:700 .95rem var(--f-body);color:var(--craie);
+  background:rgba(21,23,26,.82);border-radius:10px;padding:6px 10px;z-index:2;pointer-events:none}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.10.1/dist/mqtt.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>1, 2, 3 Soleil</h1>
+  <div class="stats"><span id="info">En ligne</span><br><button id="voix" aria-pressed="true">Son</button></div>
+</header>
+
+<main class="terrain" id="terrain">
+  <div class="mur"></div>
+  <div class="compteur" id="compteur" aria-label="Le compteur">
+    <div class="pivot">
+      <!-- Dos : cheveux en bataille -->
+      <div class="face arriere">
+        <svg viewBox="0 0 100 112">
+          <path d="M18 90 L22 104 L30 94 L36 108 L44 96 L50 110 L56 96 L64 108 L70 94 L78 104 L82 90 Z" fill="var(--cheveux)" stroke="var(--contour)" stroke-width="3.5" stroke-linejoin="round"/>
+          <ellipse cx="50" cy="52" rx="38" ry="44" fill="var(--cheveux)" stroke="var(--contour)" stroke-width="3.5"/>
+          <path d="M30 24 Q40 42 34 70 M50 12 Q54 40 48 86 M70 24 Q62 44 68 76" stroke="#3d2f27" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <ellipse cx="36" cy="26" rx="10" ry="6" fill="#fff" opacity=".12"/>
+        </svg>
+      </div>
+      <!-- Visage : poupée de porcelaine fêlée -->
+      <div class="face avant">
+        <svg viewBox="0 0 100 112">
+          <path d="M14 58 Q6 98 22 108 L32 90 Z M86 58 Q94 98 78 108 L68 90 Z" fill="var(--cheveux)" stroke="var(--contour)" stroke-width="3.5" stroke-linejoin="round"/>
+          <ellipse cx="50" cy="56" rx="34" ry="40" fill="var(--porcelaine)" stroke="var(--contour)" stroke-width="3.5"/>
+          <path d="M70 26 Q88 56 70 90 Q82 56 64 30 Z" fill="#000" opacity=".12"/>
+          <ellipse cx="34" cy="42" rx="8" ry="5" fill="#fff" opacity=".7"/>
+          <path d="M16 46 Q22 10 50 10 Q78 10 84 46 Q70 30 52 34 Q56 24 50 22 Q42 32 16 46 Z" fill="var(--cheveux)" stroke="var(--contour)" stroke-width="3.5" stroke-linejoin="round"/>
+          <ellipse cx="37" cy="56" rx="9" ry="10" fill="#0b0909" stroke="var(--contour)" stroke-width="2"/>
+          <ellipse cx="63" cy="56" rx="9" ry="10" fill="#0b0909" stroke="var(--contour)" stroke-width="2"/>
+          <circle class="pupille" cx="38" cy="57" r="2.6" fill="var(--rouge)"/>
+          <circle class="pupille" cx="62" cy="57" r="2.6" fill="var(--rouge)"/>
+          <path d="M34 70 L32 82 M66 70 L68 80" stroke="#0b0909" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>
+          <circle cx="27" cy="72" r="5" fill="#d98a8a" opacity=".5"/>
+          <circle cx="73" cy="72" r="5" fill="#d98a8a" opacity=".5"/>
+          <path d="M37 83 Q50 92 63 83" stroke="var(--contour)" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <path d="M37 83 Q50 92 63 83" stroke="#9b1c1c" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          <path d="M60 18 L56 30 L62 36 L55 48 M56 30 L49 33" stroke="#6d635a" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          <path d="M24 86 L30 92 L28 100" stroke="#6d635a" stroke-width="1.3" fill="none"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+  <div class="arrivee"><span>ARRIVÉE</span></div>
+  <div class="depart"></div>
+  <div class="joueur moi" id="joueur">
+    <svg viewBox="0 0 64 82" aria-hidden="true">
+      <ellipse cx="32" cy="79" rx="22" ry="4.5" fill="#000" opacity=".35"/>
+      <path class="flaque" d="M48 74 C40 72 42 64 54 66 C62 60 78 62 80 68 C90 68 92 76 82 80 C76 86 58 86 52 82 C44 82 42 76 48 74 Z" fill="#a3121c" stroke="#5c0a10" stroke-width="2"/>
+      <g class="perso">
+      <path class="jg" d="M17 60 h11 v14 a4 4 0 0 1 -4 4 h-7 a4 4 0 0 1 -4 -4 v-6 z" fill="var(--pion-ombre)" stroke="var(--contour)" stroke-width="3" stroke-linejoin="round"/>
+      <path class="jd" d="M36 60 h11 l4 8 v6 a4 4 0 0 1 -4 4 h-7 a4 4 0 0 1 -4 -4 z" fill="var(--pion-ombre)" stroke="var(--contour)" stroke-width="3" stroke-linejoin="round"/>
+      <g class="haut">
+        <path d="M8 42 C8 22 18 12 32 12 C46 12 56 22 56 42 L56 54 C56 64 46 68 32 68 C18 68 8 64 8 54 Z" fill="var(--pion)" stroke="var(--contour)" stroke-width="3.5"/>
+        <path d="M46 18 C56 26 58 44 54 58 C50 64 44 66 38 67 C48 58 50 36 46 18 Z" fill="var(--pion-ombre)"/>
+        <ellipse cx="20" cy="27" rx="5" ry="7" fill="#fff" opacity=".55" transform="rotate(20 20 27)"/>
+        <g class="yeux">
+        <ellipse cx="25" cy="32" rx="4.2" ry="5" fill="#fff" stroke="var(--contour)" stroke-width="2"/>
+        <ellipse cx="39" cy="32" rx="4.2" ry="5" fill="#fff" stroke="var(--contour)" stroke-width="2"/>
+        <circle cx="26" cy="33" r="2" fill="var(--contour)"/><circle cx="40" cy="33" r="2" fill="var(--contour)"/>
+        </g>
+        <path class="yeux-x" d="M21 28 l8 8 M29 28 l-8 8 M35 28 l8 8 M43 28 l-8 8" stroke="var(--contour)" stroke-width="2.6" stroke-linecap="round"/>
+        <path d="M11 22 Q32 0 53 22 Q32 16 11 22 Z" fill="var(--bonnet)" stroke="var(--contour)" stroke-width="3" stroke-linejoin="round"/>
+        <rect x="10" y="19" width="44" height="7" rx="3.5" fill="#f2f2f2" stroke="var(--contour)" stroke-width="3"/>
+        <circle cx="32" cy="5" r="5" fill="#f2f2f2" stroke="var(--contour)" stroke-width="3"/>
+        <rect x="14" y="42" width="36" height="17" rx="4" fill="#fff" stroke="var(--contour)" stroke-width="2.5"/>
+        <text id="dossard" x="32" y="54" text-anchor="middle" font-family="Baloo 2, system-ui, sans-serif" font-weight="700" font-size="10" fill="var(--contour)">Joueur</text>
+      </g>
+      </g>
+    </svg>
+  </div>
+  <div class="fusil" id="fusil">
+    <svg viewBox="0 0 84 26" aria-hidden="true">
+      <path d="M2 8 L24 8 L28 12 L28 20 L18 24 L4 22 Z" fill="#7a4a26" stroke="var(--contour)" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M6 11 L22 11" stroke="#a46a3c" stroke-width="2" stroke-linecap="round"/>
+      <rect x="24" y="7" width="22" height="9" rx="2" fill="#3a3d42" stroke="var(--contour)" stroke-width="2.5"/>
+      <rect x="44" y="9" width="32" height="5" rx="1.5" fill="#55595f" stroke="var(--contour)" stroke-width="2.5"/>
+      <path d="M32 16 L34 22 L39 22 L37 16" fill="#3a3d42" stroke="var(--contour)" stroke-width="2" stroke-linejoin="round"/>
+      <g class="flash"><path d="M76 11.5 L90 4 L86 11.5 L96 12 L86 15 L90 21 Z" fill="var(--soleil)" stroke="#ff8a00" stroke-width="1.5" stroke-linejoin="round"/></g>
+    </svg>
+  </div>
+  <div class="trait" id="trait"></div>
+  <div class="annonce" id="annonce"></div>
+
+
+  <div class="bandeau" id="bandeau" hidden></div>
+
+  <div class="voile" id="voile">
+    <h2 id="vTitre">En ligne</h2>
+    <p class="gros" id="vGros" hidden></p>
+    <p id="vTexte"></p>
+    <input id="pseudo" maxlength="10" placeholder="Ton pseudo" autocomplete="off" aria-label="Ton pseudo">
+    <div class="choix" id="choix" hidden>
+      <button class="btn" id="bPublic">Partie publique</button>
+      <button class="btn second" id="bPrive">Créer une partie privée</button>
+    </div>
+    <div id="lienBloc" class="rangee" hidden>
+      <div class="lien" id="lien"></div>
+      <button class="btn second" id="copier">Copier le lien</button>
+      <button class="btn second" id="partager" hidden>Partager</button>
+    </div>
+    <ul class="liste" id="liste" hidden></ul>
+    <ol class="classement" id="classement" hidden></ol>
+    <button class="btn" id="action" hidden></button>
+    <button class="btn second" id="action2" hidden></button>
+    <p class="statut" id="statut"></p>
+    <a href="./" id="solo">Jouer seul</a>
+  </div>
+</main>
+
+<div class="commandes">
+  <button id="avancer" aria-label="Maintenir pour avancer">Maintenir pour avancer</button>
+  <div class="aide">Sur ordinateur : barre d'espace</div>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const terrain=$('terrain'), annonce=$('annonce'), compteur=$('compteur'), voile=$('voile'), btn=$('avancer'),
+        vTitre=$('vTitre'), vGros=$('vGros'), vTexte=$('vTexte'), statut=$('statut'), action=$('action'), action2=$('action2'),
+        bandeau=$('bandeau'), info=$('info');
+
+  const MOTS=['Un','Deux','Trois','Soleil !'];
+  const VITESSE=8.5;      // % du parcours par seconde
+  const REACTION=220;     // ms de tolérance après le retournement : il faut un très bon réflexe
+  const POIDS=[0.24,0.26,0.24,0.26]; // chance de se retourner après un, deux, trois, soleil
+  const MAX=20;           // joueurs par partie
+  const MIN_PUBLIC=5;     // une partie publique ne part qu'à partir de ce nombre
+  const DECOMPTE=15000;   // relancé à chaque nouvel arrivant
+  const LIMITE=60000;     // durée maximale d'une course : personne ne bloque les autres
+  const SILENCE=5000;     // sans nouvelles d'un joueur pendant ce temps, il est parti
+  const SILENCE_MENEUR=3000;
+  const ENVOI=250;        // une position au plus toutes les 250 ms : 20 joueurs restent légers pour le relais
+  // Relais publics gratuits (MQTT sur WebSocket)
+  const RELAIS=['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt'];
+  const RACINE='soleil123/v2/', SALLE_PUBLIQUE=RACINE+'public';
+
+  const params=new URLSearchParams(location.search);
+  const codeLien=params.get('salle');
+  let relais=Math.min(RELAIS.length-1,+params.get('b')||0);
+  const monId=Math.random().toString(36).slice(2,10);
+  let client=null, connecte=false, sujet=null;
+
+  let mode=null;          // 'public' | 'prive'
+  let phase='menu';       // menu | attente | encours | fin
+  let codePrive=null, monArrivee=0, spectateur=false;
+  const membres=new Map(); // tous les autres présents dans la salle : id -> {id, nom, arr, vu, ph}
+  let participants=[];     // [[id, nom], …] de la course en cours, dans l'ordre (le premier présent mène)
+  const joueurs=new Map(); // id -> {id, nom, p, vueP, etat, s, marche, el}
+  let partieId=null, goTime=0, poupeeActive=false, decFin=null, decN=0, dernierDec=0, decRecu=null, dernierLa=0;
+
+  let poupee='dos', appui=false, marche=false, timers=[], timersPoupee=[], dernier=0, voixOn=true;
+  let motIdx=0, arretA=3, tempo=600, dernierArret=-1, course=0, dernierEnvoi=0, envoyeP=-1, envoyeM=false;
+
+  const elMoi=$('joueur');
+  const moi={id:monId, nom:'Joueur', p:0, vueP:0, etat:'attente', s:0, marche:false, el:elMoi};
+  // Modèle des pions adverses : une copie du mien sans identifiants
+  const modele=elMoi.cloneNode(true); modele.removeAttribute('id'); modele.className='joueur autre';
+  const dm=modele.querySelector('#dossard'); dm.removeAttribute('id'); dm.setAttribute('class','dossard');
+
+  // Voix de la poupée : voix française féminine, un peu aiguë
+  let voixFille=null;
+  const FEMININES=/am[eé]lie|audrey|marie|c[eé]line|julie|virginie|aur[eé]lie|denise|hortense|eloise|éloïse|female|femme|google fran/i;
+  function choisirVoix(){
+    try{
+      const vs=speechSynthesis.getVoices().filter(v=>/^fr/i.test(v.lang));
+      voixFille = vs.find(v=>FEMININES.test(v.name)) || vs.find(v=>!/thomas|daniel|henri|paul|male|homme/i.test(v.name)) || vs[0] || null;
+    }catch(e){}
+  }
+  if(window.speechSynthesis){ choisirVoix(); try{ speechSynthesis.onvoiceschanged=choisirVoix; }catch(e){} }
+  const DIRE={'Un':'Un.','Deux':'Deux.','Trois':'Trois.','Soleil !':'Soleil.'};
+
+  let ac=null, bruitTir=null;
+  function tir(){
+    const c=audio(); if(!c||!voixOn) return;
+    const t=c.currentTime;
+    if(!bruitTir){ const n=c.sampleRate*0.5; bruitTir=c.createBuffer(1,n,c.sampleRate); const d=bruitTir.getChannelData(0); for(let i=0;i<n;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2); }
+    const s=c.createBufferSource(), f=c.createBiquadFilter(), g=c.createGain();
+    s.buffer=bruitTir; f.type='lowpass'; f.frequency.setValueAtTime(3500,t); f.frequency.exponentialRampToValueAtTime(400,t+0.3);
+    g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.45);
+    s.connect(f); f.connect(g); g.connect(c.destination); s.start(t);
+    const o=c.createOscillator(), og=c.createGain(); o.frequency.setValueAtTime(140,t); o.frequency.exponentialRampToValueAtTime(40,t+0.2);
+    og.gain.setValueAtTime(0.8,t); og.gain.exponentialRampToValueAtTime(0.0001,t+0.25); o.connect(og); og.connect(c.destination); o.start(t); o.stop(t+0.3);
+  }
+  // iPhone : sans ça, le son est coupé quand le téléphone est en mode silencieux
+  let debloque=false;
+  function silenceWav(){
+    const n=8000, b=new ArrayBuffer(44+n*2), v=new DataView(b), w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+    w(0,'RIFF');v.setUint32(4,36+n*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);
+    v.setUint32(24,8000,true);v.setUint32(28,16000,true);v.setUint16(32,2,true);v.setUint16(34,16,true);w(36,'data');v.setUint32(40,n*2,true);
+    return URL.createObjectURL(new Blob([b],{type:'audio/wav'}));
+  }
+  function debloquer(){
+    if(debloque) return; debloque=true;
+    try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){}
+    try{ const a=new Audio(silenceWav()); a.loop=true; a.setAttribute('playsinline',''); a.volume=0.01; const p=a.play(); if(p&&p.catch) p.catch(()=>{}); }catch(e){}
+  }
+  function audio(){
+    debloquer();
+    try{
+      if(!ac){
+        ac=new (window.AudioContext||window.webkitAudioContext)();
+        // iOS : un tampon muet joué pendant le toucher déverrouille le contexte
+        const s=ac.createBufferSource(); s.buffer=ac.createBuffer(1,1,22050); s.connect(ac.destination); s.start(0);
+      }
+      if(ac.state!=='running') ac.resume();
+    }catch(e){ ac=null; }
+    return ac;
+  }
+  // Repli quand la synthèse vocale est absente ou bloquée : un bip par mot, plus long et plus aigu sur « Soleil »
+  function bip(t){
+    const c=audio(); if(!c) return;
+    const n=c.currentTime, soleil=t==='Soleil !', o=c.createOscillator(), g=c.createGain();
+    o.type='triangle'; o.frequency.setValueAtTime(soleil?880:{'Un':440,'Deux':523,'Trois':659}[t]||440,n);
+    g.gain.setValueAtTime(0.0001,n); g.gain.exponentialRampToValueAtTime(0.5,n+0.02); g.gain.exponentialRampToValueAtTime(0.0001,n+(soleil?0.5:0.22));
+    o.connect(g); g.connect(c.destination); o.start(n); o.stop(n+0.6);
+  }
+  // iOS n'accepte la voix que si la première phrase part pendant un toucher : on en dit une muette au clic sur « Jouer »
+  let voixMorte=!window.speechSynthesis, enCours=null, echecs=0;
+  const IOS=/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints>1);
+  function amorcerVoix(){
+    if(voixMorte) return;
+    try{ speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance('a'); u.lang='fr-FR'; u.volume=0; speechSynthesis.speak(u); }catch(e){ voixMorte=true; }
+  }
+  const parler = t => {
+    if(!voixOn) return;
+    if(voixMorte){ bip(t); return; }
+    try{
+      // On coupe la phrase en retard : la voix reste calée sur le mot affiché.
+      // Safari iOS perd souvent la phrase dite juste après un cancel() : là-bas, on ne coupe que si elle parle encore.
+      if(!IOS || speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+      if(speechSynthesis.paused) speechSynthesis.resume();
+      const u=new SpeechSynthesisUtterance(DIRE[t]||t); u.lang='fr-FR';
+      if(voixFille) u.voice=voixFille;
+      u.pitch=1.45; u.rate=0.88; u.volume=1;
+      let parti=false; u.onstart=()=>{ parti=true; echecs=0; };
+      enCours=u; // Chrome perd les évènements d'une phrase qui n'est plus référencée
+      speechSynthesis.speak(u);
+      // Deux mots de suite sans voix au bout d'une seconde : elle est bloquée sur cet appareil, on passe aux bips
+      setTimeout(()=>{ if(!parti && ++echecs>=2) voixMorte=true; },1000);
+    }catch(e){ voixMorte=true; bip(t); }
+  };
+
+  const plus=(fn,ms)=>timers.push(setTimeout(fn,ms));
+  const plusP=(fn,ms)=>timersPoupee.push(setTimeout(fn,ms));
+  const stop=()=>{timers.forEach(clearTimeout); timers=[];};
+  const stopPoupee=()=>{timersPoupee.forEach(clearTimeout); timersPoupee=[]; poupeeActive=false;};
+  const alea=(a,b)=>a+Math.random()*(b-a);
+  const echap=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const nomPropre=n=>String(n||'Joueur').slice(0,10);
+  let dernierTir=0;
+  function tirLimite(){ const t=performance.now(); if(t-dernierTir>150){ dernierTir=t; tir(); } }
+
+  /* ---------- Réseau ---------- */
+  function envoyer(o){ if(!client||!connecte||!sujet) return; o.de=monId; try{ client.publish(sujet,JSON.stringify(o)); }catch(e){} }
+  function abonner(t){
+    if(client && sujet && sujet!==t){ try{ client.unsubscribe(sujet); }catch(e){} }
+    sujet=t; membres.clear(); if(client && connecte && t) client.subscribe(t);
+  }
+  function connecter(idx, ok, ko){
+    if(client){ if(connecte) ok(); else ko(); return; }
+    if(!window.mqtt){ ko(); return; }
+    let premier=true;
+    const c=mqtt.connect(RELAIS[idx],{clientId:'soleil123_'+monId, reconnectPeriod:2000, connectTimeout:7000, clean:true});
+    const delai=setTimeout(()=>{ if(premier){ premier=false; c.end(true); ko(); } },8000);
+    c.on('connect',()=>{
+      connecte=true; if(sujet) c.subscribe(sujet);
+      if(premier){ premier=false; clearTimeout(delai); client=c; relais=idx; ok(); }
+    });
+    c.on('offline',()=>{ connecte=false; });
+    c.on('message',(t,m)=>{ if(t!==sujet) return; let d; try{ d=JSON.parse(m.toString()); }catch(e){ return; } if(d && d.de && d.de!==monId) recevoir(d); });
+  }
+  function seConnecter(suite){
+    ecran({titre:'Connexion…', statut:'On rejoint le serveur de jeu'});
+    const essai=i=>connecter(i,suite,()=>{ if(!client && i+1<RELAIS.length && mode!=='prive') essai(i+1); else ecran({titre:'Pas de connexion', perdu:true,
+      texte:'Impossible de joindre le serveur de jeu. Vérifie ta connexion internet et réessaie.', action:'Réessayer', faire:()=>seConnecter(suite), action2:'Menu', faire2:menu}); });
+    essai(mode==='prive' && codeLien ? relais : 0);
+  }
+
+  function recevoir(d){
+    const now=performance.now();
+    let m=membres.get(d.de);
+    if(!m){ m={id:d.de, nom:'Joueur', arr:Infinity, vu:now, ph:'attente'}; membres.set(d.de,m); }
+    m.vu=now; if(d.nom) m.nom=nomPropre(d.nom); if(typeof d.a==='number') m.arr=d.a; if(d.ph) m.ph=d.ph;
+    const j=joueurs.get(d.de);
+    switch(d.t){
+      case 'bye': membres.delete(d.de); if(j) joueurParti(j); break;
+      case 'decompte': if(mode==='public' && phase==='attente' && !jeSuisChefAttente()) decRecu={r:d.r, n:d.n, t:now}; break;
+      case 'depart': demarrerPartie(d); break;
+      case 'mot': case 'tourne': case 'dos':
+        if(phase!=='encours' || !j) break;
+        // Deux meneurs à la fois (retour d'un joueur perdu de vue) : le mieux placé garde la poupée
+        if(poupeeActive && rang(d.de)<rang(monId)) stopPoupee();
+        if(!poupeeActive) appliquer(d);
+        break;
+      case 'pos': if(j && j.etat==='joue'){ j.p=d.p; j.marche=!!d.m; } break;
+      case 'mort': if(j) joueurMort(j,d.p); break;
+      case 'gagne': if(j) joueurArrive(j,d.s); break;
+      case 'fin':
+        if(phase==='encours' && j) appliquerFin(d.r);
+        else if(spectateur){ participants.forEach(([id])=>{ const x=membres.get(id); if(x) x.ph='fin'; }); spectateur=false; majAttente(true); }
+        break;
+    }
+  }
+
+  /* ---------- Salle d'attente ---------- */
+  // Ordre de la salle : par heure d'arrivée, puis par identifiant ; le premier mène
+  function ordre(){
+    const l=[{id:monId, nom:moi.nom, arr:monArrivee}];
+    membres.forEach(m=>{ if(m.ph!=='encours') l.push(m); });
+    return l.sort((a,b)=>a.arr-b.arr || (a.id<b.id?-1:1));
+  }
+  const jeSuisChefAttente=()=>ordre()[0].id===monId;
+
+  function tic(){
+    const now=performance.now();
+    if((phase==='attente'||phase==='fin') && now-dernierLa>1000){ dernierLa=now; envoyer({t:'la', nom:moi.nom, a:monArrivee, ph:spectateur?'attente':phase}); }
+    if(phase==='encours' && now-dernierLa>1500){ dernierLa=now; envoyer({t:'pos', p:+moi.p.toFixed(2), m:marche?1:0}); }
+    // Le meneur parle au moins toutes les 1,5 s : 3 s de silence suffisent pour passer la poupée au suivant
+    const chefId = phase==='encours' ? chefCourse() : null;
+    membres.forEach((m,id)=>{ if(now-m.vu>(id===chefId?SILENCE_MENEUR:SILENCE)){ membres.delete(id); const j=joueurs.get(id); if(j) joueurParti(j); } });
+    if(phase==='attente' && mode==='public') chefPublic(now);
+    if(phase==='attente' || phase==='fin') majAttente();
+    if(phase==='encours') chefPartie(now);
+  }
+  setInterval(tic,250);
+  addEventListener('pagehide',()=>envoyer({t:'bye'}));
+
+  function chefPublic(now){
+    if(!jeSuisChefAttente()){ decFin=null; return; }
+    const o=ordre(), n=Math.min(o.length,MAX);
+    if(o.length>=MAX){ lancerDepart(o.slice(0,MAX)); return; }
+    if(n>=MIN_PUBLIC){ if(decFin===null || n>decN) decFin=now+DECOMPTE; } else decFin=null;
+    decN=n;
+    const r = decFin ? Math.max(0,Math.ceil((decFin-now)/1000)) : -1;
+    if(now-dernierDec>500){ dernierDec=now; envoyer({t:'decompte', r, n}); }
+    decRecu={r, n, t:now};
+    if(decFin && now>=decFin) lancerDepart(o.slice(0,MAX));
+  }
+
+  let dernierRendu='';
+  function majAttente(force){
+    if(phase==='fin'){ majChefFin(); return; } // l'écran des résultats reste affiché
+    if(voile.hidden && phase!=='attente') return;
+    const o=ordre(), n=o.length;
+    let titre, gros='', texte='', st='', ton='', act=null, act2='Quitter', f2=menu;
+    if(mode==='public'){
+      titre='Salle d’attente';
+      const d=decRecu && performance.now()-decRecu.t<3000 ? decRecu : null;
+      const r=d && d.r>=0 ? Math.max(0,d.r-Math.floor((performance.now()-d.t)/1000)) : -1;
+      if(n<MIN_PUBLIC){ gros=n+' / '+MIN_PUBLIC; texte='La partie démarre dès '+MIN_PUBLIC+' joueurs. Envoie le lien du jeu à tes amis : ils arriveront ici, en « Partie publique ».'; }
+      else if(r>=0){ gros=String(r); texte='Départ dans '+r+' s. Chaque nouvel arrivant relance le décompte de 15 s.'; }
+      else { gros=n+' joueurs'; texte='Le départ se prépare…'; }
+      st=n+(n>1?' joueurs':' joueur')+' dans la salle (20 au maximum par partie)';
+    } else {
+      const chef=o[0], pleine=n>MAX && o.findIndex(x=>x.id===monId)>=MAX;
+      if(spectateur){ titre='Partie en cours'; texte='Une course est en cours. Tu entres dans la prochaine.'; }
+      else if(pleine){ titre='Salle pleine'; texte='20 joueurs au maximum. Tu entres dès qu’une place se libère.'; }
+      else { titre='Partie privée'; texte='Envoie le lien à tes amis (20 joueurs au maximum).'; }
+      st=Math.min(n,MAX)+' / '+MAX+' joueurs'+(chef.id===monId?'':' · '+chef.nom+' lance la partie');
+      if(chef.id===monId && !spectateur){ act='Lancer la partie'; }
+    }
+    const liste=o.slice(0,MAX).map(x=>`<li${x.id===monId?' class="moi"':''}>${echap(x.nom)}</li>`).join('');
+    const cle=[titre,gros,texte,st,act,liste,n].join('|');
+    if(!force && cle===dernierRendu) return;
+    dernierRendu=cle;
+    ecran({titre, gros, texte, statut:st, ton, lien:true, liste,
+      action:act, faire:lancerPrive, desactive:act && n<2, action2:act2, faire2:f2});
+  }
+
+  /* ---------- Écrans ---------- */
+  function ecran(o){
+    vTitre.textContent=o.titre; vTitre.className=o.perdu?'perdu':'';
+    vGros.hidden=!o.gros; vGros.textContent=o.gros||'';
+    vTexte.textContent=o.texte||''; vTexte.hidden=!o.texte;
+    $('pseudo').hidden=!o.pseudo; $('choix').hidden=!o.choix;
+    $('lienBloc').hidden=!o.lien; if(o.lien) $('lien').textContent=lienSalle();
+    $('liste').hidden=!o.liste; if(o.liste) $('liste').innerHTML=o.liste;
+    $('classement').hidden=!o.classement; if(o.classement) $('classement').innerHTML=o.classement;
+    action.hidden=!o.action; if(o.action){ action.textContent=o.action; action.onclick=o.faire; action.disabled=!!o.desactive; }
+    action2.hidden=!o.action2; if(o.action2){ action2.textContent=o.action2; action2.onclick=o.faire2; }
+    statut.textContent=o.statut||''; statut.className='statut'+(o.ton?' '+o.ton:'');
+    $('solo').hidden=!o.solo;
+    bandeau.hidden=true; voile.hidden=false;
+  }
+  // En public, le lien à partager est simplement celui du jeu : les amis tombent dans la même salle d'attente
+  const lienSalle=()=>location.origin+location.pathname+(mode==='public'?'':'?salle='+codePrive+(relais?'&b='+relais:''));
+
+  function menu(){
+    if(sujet){ envoyer({t:'bye'}); abonner(null); }
+    mode=null; phase='menu'; spectateur=false; stop(); stopPoupee(); relacher(); viderPions(); info.textContent='En ligne';
+    if(codeLien && !codePrive) codePrive=codeLien;
+    if(codeLien) ecran({titre:'On t’attend !', texte:'Tu es invité à une partie privée (20 joueurs au maximum).', pseudo:true,
+      action:'Rejoindre', faire:()=>{ lirePseudo(); entrerPrive(codeLien); }, action2:'Partie publique', faire2:()=>{ lirePseudo(); entrerPublic(); }, solo:true});
+    else ecran({titre:'En ligne', texte:'Jusqu’à 20 joueurs. Le premier qui franchit la ligne gagne ; bouger quand la poupée regarde, c’est éliminé.',
+      pseudo:true, choix:true, solo:true});
+  }
+  function lirePseudo(){
+    moi.nom=nomPropre($('pseudo').value.trim()||'Joueur');
+    try{ localStorage.setItem('soleil-pseudo',moi.nom); }catch(e){}
+    nommer(elMoi,moi.nom); $('pseudo').blur(); debloquerSon();
+  }
+  function debloquerSon(){ audio(); try{ if(window.speechSynthesis) choisirVoix(); }catch(e){} amorcerVoix(); }
+
+  function entrerPublic(){
+    mode='public';
+    seConnecter(()=>{ abonner(SALLE_PUBLIQUE); entrerAttente(); });
+  }
+  function creerPrive(){
+    lirePseudo(); mode='prive';
+    const A='abcdefghjkmnpqrstuvwxyz23456789'; codePrive=''; for(let i=0;i<6;i++) codePrive+=A[Math.floor(Math.random()*A.length)];
+    seConnecter(()=>{ abonner(RACINE+'p/'+codePrive); entrerAttente(); });
+  }
+  function entrerPrive(code){
+    mode='prive'; codePrive=code;
+    seConnecter(()=>{ abonner(RACINE+'p/'+code); entrerAttente(); });
+  }
+  function entrerAttente(){
+    phase='attente'; spectateur=false; monArrivee=Date.now(); decFin=null; decRecu=null; dernierLa=0; dernierRendu='';
+    stop(); stopPoupee(); viderPions(); info.textContent=mode==='public'?'Partie publique':'Partie privée';
+    majAttente(true);
+  }
+  function lancerPrive(){
+    const o=ordre();
+    if(o.length<2){ statut.textContent='Il faut au moins 2 joueurs.'; statut.className='statut ko'; return; }
+    lancerDepart(o.slice(0,MAX));
+  }
+  function lancerDepart(liste){
+    const d={t:'depart', id:Math.random().toString(36).slice(2,10), j:liste.map(x=>[x.id,x.nom])};
+    envoyer(d); demarrerPartie(d);
+  }
+
+  /* ---------- Course ---------- */
+  function viderPions(){ joueurs.forEach(j=>{ if(j!==moi) j.el.remove(); }); joueurs.clear(); }
+  const rang=id=>{ const i=participants.findIndex(x=>x[0]===id); return i<0?99:i; };
+
+  function demarrerPartie(d){
+    if(phase==='encours' || !Array.isArray(d.j)) return;
+    if(!d.j.some(x=>x[0]===monId)){
+      // Salle publique : ceux qui partent courir quittent la salle tout de suite, sinon ils compteraient encore 5 s
+      if(mode==='public'){ d.j.forEach(([id])=>membres.delete(id)); decFin=null; }
+      if(mode==='prive'){ d.j.forEach(([id])=>{ const m=membres.get(id); if(m) m.ph='encours'; }); participants=d.j; spectateur=true; majAttente(true); }
+      return;
+    }
+    partieId=d.id; participants=d.j.slice(0,MAX); spectateur=false; finAffichee=false;
+    if(mode==='public') abonner(RACINE+'p/'+partieId);
+    stop(); stopPoupee(); relacher(); viderPions();
+    phase='encours'; poupee='dos'; dernierArret=-1; dernierLa=0; envoyeP=-1;
+    compteur.classList.remove('regarde'); $('fusil').className='fusil'; $('fusil').style.transform=''; $('trait').className='trait';
+    mesurer();
+    const n=participants.length;
+    participants.forEach(([id,nom],i)=>{
+      const x = n===1 ? 50 : 8+i*(84/(n-1));
+      let j;
+      if(id===monId){ j=moi; Object.assign(moi,{p:0, vueP:0, etat:'attente', s:0, marche:false}); elMoi.classList.remove('mort','tombe','marche'); }
+      else {
+        const el=modele.cloneNode(true), h=Math.round((i*137.5+200)%360);
+        el.style.setProperty('--pion',`hsl(${h} 80% 64%)`); el.style.setProperty('--pion-ombre',`hsl(${h} 65% 44%)`); el.style.setProperty('--bonnet',`hsl(${(h+160)%360} 70% 55%)`);
+        elMoi.before(el); j={id, nom:nomPropre(nom), p:0, vueP:0, etat:'joue', s:0, marche:false, el};
+        nommer(el,j.nom);
+        if(!membres.has(id)) membres.set(id,{id, nom:j.nom, arr:Infinity, vu:performance.now(), ph:'encours'});
+      }
+      j.el.style.left=x+'%'; placer(j,0); joueurs.set(id,j);
+    });
+    voile.hidden=true; bandeau.hidden=true; annonce.className='annonce';
+    // Compte à rebours local : la poupée ne commence qu'après, chez le meneur
+    ['3','2','1'].forEach((c,i)=>plus(()=>{ annonce.textContent=c; },i*1000));
+    goTime=performance.now()+3000;
+    plus(()=>{ moi.etat='joue'; annonce.textContent='Partez !'; annonce.className='annonce chaud'; },3000);
+    plus(()=>{ if(annonce.textContent==='Partez !') annonce.textContent=''; },3700);
+  }
+
+  // Le meneur de la course : le premier participant encore présent. Il tient la poupée et siffle la fin.
+  function chefCourse(){ const c=participants.find(([id])=>{ const j=joueurs.get(id); return j && j.present!==false; }); return c ? c[0] : null; }
+  function chefPartie(now){
+    const reste=Math.max(0,Math.ceil((goTime+LIMITE-now)/1000)), enCourse=[...joueurs.values()].filter(j=>j.etat==='joue'||j.etat==='attente').length;
+    info.textContent=(now<goTime?'Prêts…':reste+' s')+' · '+enCourse+' en course';
+    if(chefCourse()!==monId){
+      // Filet de sécurité si le message de fin se perd
+      if(now>goTime+LIMITE+6000) appliquerFin(null);
+      return;
+    }
+    if(now<goTime) return;
+    if(!poupeeActive){ poupeeActive=true; if(poupee!=='dos') emettre({t:'dos'}); nouvelleSerie(); }
+    const fini=[...joueurs.values()].every(j=>j.etat!=='joue') && moi.etat!=='attente';
+    if(fini || now>=goTime+LIMITE) emettreFin();
+  }
+  function emettreFin(){
+    const r=participants.map(([id])=>{ const j=joueurs.get(id); return j?[id, j.etat==='joue'||j.etat==='attente'?'temps':j.etat, +j.s.toFixed(2), +j.p.toFixed(1)]:[id,'parti',0,0]; });
+    envoyer({t:'fin', r}); appliquerFin(r);
+  }
+
+  // L'hôte du moment tient la poupée : chaque évènement est envoyé aux autres et appliqué chez soi
+  function emettre(ev){ envoyer(ev); appliquer(ev); }
+  function tirerArret(){
+    // Tirage pondéré, en évitant de retomber deux fois de suite sur le même mot
+    let i;
+    do{ let r=Math.random(), s=0; i=3; for(let k=0;k<4;k++){ s+=POIDS[k]; if(r<s){i=k;break;} } }
+    while(i===dernierArret && Math.random()<0.6);
+    dernierArret=i; return i;
+  }
+  function nouvelleSerie(){
+    motIdx=0; arretA=tirerArret(); tempo=alea(420,900);
+    plusP(compter, alea(300,900));
+  }
+  function compter(){
+    if(phase!=='encours' || poupee!=='dos') return;
+    emettre({t:'mot',i:motIdx});
+    if(motIdx===arretA){
+      const r=alea(0,90);
+      plusP(()=>emettre({t:'tourne'}), r);
+      plusP(()=>{ if(phase!=='encours') return; emettre({t:'dos'}); nouvelleSerie(); }, r+alea(1200,2800));
+      return;
+    }
+    motIdx++;
+    // Rythme irrégulier : parfois un mot étiré pour piéger
+    const piege = Math.random()<0.22 ? alea(500,1300) : 0;
+    plusP(compter, tempo*alea(0.75,1.25)+piege);
+  }
+
+  // Chacun est jugé sur son propre écran, au moment où la poupée s'y retourne
+  function appliquer(ev){
+    if(phase!=='encours') return;
+    if(ev.t==='mot'){
+      const mot=MOTS[ev.i]||''; annonce.textContent=mot; annonce.className='annonce'+(ev.i===3?' chaud':''); parler(mot);
+    } else if(ev.t==='tourne'){
+      poupee='regarde'; compteur.classList.add('regarde');
+      annonce.textContent='Je te vois…'; annonce.className='annonce alerte';
+      plus(()=>{ if(poupee!=='regarde') return; poupee='surveille'; if(appui && moi.etat==='joue') eliminerMoi(); }, REACTION);
+    } else if(ev.t==='dos'){
+      poupee='dos'; compteur.classList.remove('regarde'); annonce.textContent='';
+    }
+  }
+
+  function tirerSur(el){
+    const fusil=$('fusil'), trait=$('trait'), T=terrain.getBoundingClientRect();
+    const gx=fusil.offsetLeft+12, gy=fusil.offsetTop+13;
+    const J=el.getBoundingClientRect(), jx=J.left+J.width/2-T.left, jy=J.top+J.height*0.45-T.top;
+    const ang=Math.atan2(jy-gy,jx-gx), deg=ang*180/Math.PI, flip=Math.abs(deg)>90?' scaleY(-1)':'';
+    fusil.className='fusil'; trait.className='trait';
+    fusil.style.transform='translateX(-20px) rotate(0deg)';
+    requestAnimationFrame(()=>{ fusil.classList.add('sorti'); fusil.style.transform=`rotate(${deg}deg)${flip}`; });
+    setTimeout(()=>{
+      fusil.classList.add('tir'); tir();
+      const bx=gx+Math.cos(ang)*84, by=gy+Math.sin(ang)*84, dist=Math.hypot(jx-bx,jy-by);
+      trait.style.left=bx+'px'; trait.style.top=by+'px'; trait.style.width=dist+'px'; trait.style.transform=`rotate(${deg}deg)`;
+      trait.classList.remove('vu'); void trait.offsetWidth; trait.classList.add('vu');
+      setTimeout(()=>{ el.classList.add('mort','tombe'); }, 60);
+    }, 520);
+  }
+
+  function eliminerMoi(){
+    if(moi.etat!=='joue') return;
+    moi.etat='mort'; relacher(); elMoi.classList.remove('marche'); marche=false;
+    envoyer({t:'mort',p:+moi.p.toFixed(2)});
+    tirerSur(elMoi);
+    setTimeout(()=>{ if(phase==='encours'){ bandeau.textContent='Éliminé à '+Math.round(moi.p)+' % ! Regarde la fin…'; bandeau.hidden=false; } },1200);
+  }
+  function gagnerMoi(){
+    moi.etat='gagne'; moi.s=(performance.now()-goTime)/1000; relacher();
+    envoyer({t:'gagne',s:+moi.s.toFixed(2)});
+    const avant=[...joueurs.values()].filter(j=>j!==moi && j.etat==='gagne').length;
+    bandeau.textContent=`Arrivé${avant?' '+(avant+1)+'e':' premier'} en ${moi.s.toFixed(1)} s ! Attends la fin…`; bandeau.hidden=false;
+  }
+  function joueurMort(j,p){
+    if(j===moi || j.etat!=='joue') return;
+    j.etat='mort'; if(typeof p==='number') j.p=p; j.vueP=j.p; placer(j,j.p);
+    j.el.classList.add('mort','tombe'); tirLimite();
+  }
+  function joueurArrive(j,s){
+    if(j===moi || (j.etat!=='joue' && j.etat!=='attente')) return;
+    j.etat='gagne'; j.s=+s||0; j.p=100;
+  }
+  // La présence compte pour le choix du meneur, même pour un joueur déjà éliminé ou arrivé
+  function joueurParti(j){
+    if(j===moi || phase!=='encours') return;
+    j.present=false;
+    if(j.etat==='gagne' || j.etat==='mort') return;
+    j.etat='parti'; j.el.style.opacity='.25';
+  }
+
+  function appliquerFin(r){
+    if(phase!=='encours') return;
+    if(r) r.forEach(([id,etat,s,p])=>{ const j=joueurs.get(id); if(!j || j===moi && (moi.etat==='gagne'||moi.etat==='mort')) return; j.etat=etat; j.s=s; j.p=p; });
+    else joueurs.forEach(j=>{ if(j.etat==='joue'||j.etat==='attente') j.etat='temps'; });
+    phase='fin'; stop(); stopPoupee(); relacher(); poupee='dos'; info.textContent=mode==='public'?'Partie publique':'Partie privée';
+    if(moi.etat==='joue') moi.etat='temps';
+    setTimeout(afficherFin, moi.etat==='mort' ? 1800 : 900);
+  }
+  // Partie privée : si celui qui doit relancer s'en va, le bouton « Rejouer » passe au suivant
+  let chefAffiche=null, finAffichee=false;
+  function majChefFin(){ if(mode==='prive' && finAffichee && ordre()[0].id!==chefAffiche) afficherFin(); }
+  function afficherFin(){
+    if(phase!=='fin') return;
+    finAffichee=true;
+    const tous=[...joueurs.values()];
+    const arrives=tous.filter(j=>j.etat==='gagne').sort((a,b)=>a.s-b.s);
+    const autres=tous.filter(j=>j.etat!=='gagne').sort((a,b)=>b.p-a.p);
+    const ordreFinal=arrives.concat(autres);
+    const lib={mort:'éliminé', temps:'temps écoulé', parti:'parti'};
+    const rangTxt=k=>k===1?'1er':k+'e';
+    const classement=ordreFinal.map((j,k)=>`<li${j===moi?' class="moi"':''}><b>${j.etat==='gagne'?rangTxt(k+1):'–'}</b><span>${echap(j.nom)}</span><i>${j.etat==='gagne'?j.s.toFixed(1)+' s':(lib[j.etat]||'')+(j.etat==='parti'?'':' · '+Math.round(j.p)+' %')}</i></li>`).join('');
+    const monRang=arrives.indexOf(moi)+1;
+    const o={classement};
+    if(monRang===1){ o.titre='Gagné !'; o.texte=`Premier sur ${tous.length} en ${moi.s.toFixed(1)} s.`; }
+    else if(monRang>1){ o.titre='Arrivé !'; o.texte=`${rangTxt(monRang)} sur ${tous.length}, en ${moi.s.toFixed(1)} s.`; }
+    else if(moi.etat==='mort'){ o.titre='Éliminé'; o.perdu=true; o.texte=`La poupée t’a vu bouger à ${Math.round(moi.p)} %.`; }
+    else { o.titre='Temps écoulé'; o.perdu=true; o.texte=`Tu n’as pas franchi la ligne en 60 s (${Math.round(moi.p)} %).`; }
+    if(mode==='public'){ o.action='Rejouer'; o.faire=()=>{ abonner(SALLE_PUBLIQUE); entrerAttente(); }; o.action2='Menu'; o.faire2=menu; }
+    else {
+      const chef=ordre()[0]; chefAffiche=chef.id;
+      if(chef.id===monId){ o.action='Rejouer'; o.faire=()=>{ phase='attente'; lancerPrive(); }; }
+      else o.statut='En attente que '+chef.nom+' relance…';
+      o.action2='Quitter'; o.faire2=menu;
+    }
+    ecran(o);
+  }
+
+  /* ---------- Mouvement ---------- */
+  function mesurer(){ course = terrain.clientHeight - 6 - 136 - 21; }
+  function placer(j,p){ const k=p/100, s=(1-0.22*k)*(j===moi?1:0.62); j.el.style.transform=`translate3d(0,${-course*k}px,0) scale(${s})`; }
+  function nommer(el,n){ const d=el.querySelector('#dossard,.dossard'); d.textContent=n; if(n.length>5){ d.setAttribute('textLength','32'); d.setAttribute('lengthAdjust','spacingAndGlyphs'); } else { d.removeAttribute('textLength'); d.removeAttribute('lengthAdjust'); } }
+
+  function boucle(t){
+    const dt=Math.min(0.05,(t-dernier)/1000); dernier=t;
+    const bouge = appui && moi.etat==='joue' && poupee==='dos';
+    if(bouge!==marche){ marche=bouge; elMoi.classList.toggle('marche',bouge); }
+    if(appui && moi.etat==='joue'){
+      if(poupee==='surveille') eliminerMoi();
+      else if(poupee==='dos'){ moi.p=Math.min(100,moi.p+VITESSE*dt); placer(moi,moi.p); if(moi.p>=100) gagnerMoi(); }
+    }
+    if(phase==='encours'){
+      // Les autres arrivent par paquets : on glisse vers leur dernière position connue, sans toucher au DOM s'ils sont immobiles
+      const k=Math.min(1,dt*12);
+      joueurs.forEach(j=>{
+        if(j===moi) return;
+        const cible = j.etat==='gagne' ? 100 : j.p;
+        if(j.etat!=='mort' && Math.abs(cible-j.vueP)>0.02){ j.vueP += (cible-j.vueP)*k; placer(j,j.vueP); }
+      });
+      if(t-dernierEnvoi>ENVOI && (Math.abs(moi.p-envoyeP)>0.05 || marche!==envoyeM)){
+        dernierEnvoi=t; envoyeP=moi.p; envoyeM=marche; dernierLa=performance.now(); envoyer({t:'pos',p:+moi.p.toFixed(2),m:marche?1:0});
+      }
+    }
+    requestAnimationFrame(boucle);
+  }
+
+  function appuyer(e){ if(e) e.preventDefault(); if(moi.etat!=='joue' || phase!=='encours') return; if(appui) return; appui=true; btn.classList.add('appuye'); }
+  function relacher(){ if(!appui) return; appui=false; btn.classList.remove('appuye'); }
+
+  btn.addEventListener('pointerdown',e=>{ appuyer(e); try{btn.setPointerCapture(e.pointerId);}catch(_){} });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>btn.addEventListener(ev,relacher));
+  btn.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
+  btn.addEventListener('contextmenu',e=>e.preventDefault());
+  addEventListener('keydown',e=>{ if(e.code==='Space' && e.target!==$('pseudo')){ e.preventDefault(); if(!e.repeat) appuyer(); } });
+  addEventListener('keyup',e=>{ if(e.code==='Space') relacher(); });
+  addEventListener('blur',relacher);
+  addEventListener('resize',()=>{ mesurer(); joueurs.forEach(j=>placer(j,j===moi?j.p:j.vueP)); if(!joueurs.size) placer(moi,0); });
+  $('voix').addEventListener('click',e=>{ voixOn=!voixOn; e.currentTarget.setAttribute('aria-pressed',String(voixOn)); });
+  $('pseudo').addEventListener('keydown',e=>{ if(e.key==='Enter'){ if(!$('choix').hidden) $('bPublic').click(); else if(!action.hidden) action.click(); } });
+  $('bPublic').addEventListener('click',()=>{ lirePseudo(); entrerPublic(); });
+  $('bPrive').addEventListener('click',creerPrive);
+
+  $('copier').addEventListener('click',async e=>{
+    const b=e.currentTarget;
+    try{ await navigator.clipboard.writeText(lienSalle()); b.textContent='Copié !'; }
+    catch(_){ const r=document.createRange(); r.selectNodeContents($('lien')); const s=getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent='Sélectionné, copie-le'; }
+    setTimeout(()=>{ b.textContent='Copier le lien'; },2000);
+  });
+  if(navigator.share){
+    $('partager').hidden=false;
+    $('partager').addEventListener('click',()=>{ navigator.share({title:'1, 2, 3 Soleil',text:'Viens jouer à 1, 2, 3 Soleil avec nous !',url:lienSalle()}).catch(()=>{}); });
+  }
+
+  try{ const p=localStorage.getItem('soleil-pseudo'); if(p){ $('pseudo').value=p; nommer(elMoi,p); moi.nom=nomPropre(p); } }catch(e){}
+  window.__soleil={etat:()=>({phase, mode, poupee, poupeeActive, moi:{p:moi.p,etat:moi.etat}, membres:membres.size, participants:participants.length,
+    joueurs:[...joueurs.values()].map(j=>({nom:j.nom,etat:j.etat,p:Math.round(j.p)})), chef:participants.length?participants.find(([id])=>{const j=joueurs.get(id); return j&&j.etat!=='parti';})?.[1]:ordre()[0].nom})};
+  menu(); mesurer(); placer(moi,0); requestAnimationFrame(t=>{dernier=t; boucle(t);});
+})();
+</script>
+</body>
+</html>
