@@ -113,6 +113,9 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box}
 .btn.second{background:transparent;color:var(--craie);border:2px solid var(--craie);padding:10px 22px}
 .choix{display:flex;flex-direction:column;gap:10px;width:min(100%,260px)}
+.choix .choix{width:100%}
+.rubrique{display:flex;align-items:center;gap:8px;margin:6px 0 0;font:700 .75rem var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--craie-dim)}
+.rubrique::before,.rubrique::after{content:"";flex:1;border-top:1.5px dashed var(--craie-dim);opacity:.6}
 /* Menu pause : au-dessus de tout le terrain */
 .voile.pause{z-index:4;background:rgba(35,39,43,.96)}
 
@@ -212,8 +215,12 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
     <p id="vTexte">Garde le doigt appuyé pour avancer. Lâche dès que la poupée se retourne. Elle peut le faire à « un », « deux », « trois » ou « soleil ».</p>
     <input id="pseudo" maxlength="10" placeholder="Ton pseudo" autocomplete="off" aria-label="Ton pseudo">
     <div class="choix">
-      <button class="btn" id="jouer">Jouer seul</button>
-      <a class="btn second" id="enLigne" href="enligne.html">Jouer en ligne (jusqu’à 20)</a>
+      <button class="btn" id="jouer">Jouer en solo</button>
+      <div class="choix" id="enLigne">
+        <p class="rubrique">En ligne · jusqu’à 20</p>
+        <a class="btn second" href="enligne.html?mode=public">Partie publique</a>
+        <a class="btn second" href="enligne.html?mode=prive">Partie privée</a>
+      </div>
       <button class="btn second" id="vMenu" hidden>Menu principal</button>
     </div>
   </div>
@@ -436,7 +443,7 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
     $('fusil').className='fusil'; $('fusil').style.transform=''; $('trait').className='trait';
     annonce.textContent=''; annonce.className='annonce'; placer();
     vTitre.textContent='1, 2, 3 Soleil'; vTitre.className=''; vTexte.textContent=REGLE;
-    $('jouer').textContent='Jouer seul'; $('enLigne').hidden=false; $('vMenu').hidden=true; voile.hidden=false; majPause();
+    $('jouer').textContent='Jouer en solo'; $('enLigne').hidden=false; $('vMenu').hidden=true; voile.hidden=false; majPause();
   }
 
   function mesurer(){ course = terrain.clientHeight - 6 - 136 - 21; }
@@ -490,6 +497,8 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
   $('pRecommencer').addEventListener('click',()=>{ lancer(); });
   $('pMenu').addEventListener('click',menuPrincipal);
   $('vMenu').addEventListener('click',menuPrincipal);
+  // Le pseudo suit le joueur dans la partie en ligne
+  $('enLigne').addEventListener('click',()=>{ try{ localStorage.setItem('soleil-pseudo',($('pseudo').value.trim()||'Joueur').slice(0,10)); }catch(e){} });
   addEventListener('keyup',e=>{ if(e.code==='Space') relacher(); });
   addEventListener('blur',relacher);
   addEventListener('resize',()=>{mesurer();placer();});

@@ -113,6 +113,9 @@ h1{font-family:var(--f-display);font-weight:400;font-size:1.9rem;margin:0;color:
 a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box}
 .btn.second{background:transparent;color:var(--craie);border:2px solid var(--craie);padding:10px 22px}
 .choix{display:flex;flex-direction:column;gap:10px;width:min(100%,260px)}
+.choix .choix{width:100%}
+.rubrique{display:flex;align-items:center;gap:8px;margin:6px 0 0;font:700 .75rem var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--craie-dim)}
+.rubrique::before,.rubrique::after{content:"";flex:1;border-top:1.5px dashed var(--craie-dim);opacity:.6}
 /* Menu pause : au-dessus de tout le terrain */
 .voile.pause{z-index:4;background:rgba(35,39,43,.96)}
 
@@ -244,8 +247,10 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
     <p id="vTexte"></p>
     <input id="pseudo" maxlength="10" placeholder="Ton pseudo" autocomplete="off" aria-label="Ton pseudo">
     <div class="choix" id="choix" hidden>
-      <button class="btn" id="bPublic">Partie publique</button>
-      <button class="btn second" id="bPrive">Créer une partie privée</button>
+      <a class="btn" href="./">Jouer en solo</a>
+      <p class="rubrique">En ligne · jusqu’à 20</p>
+      <button class="btn second" id="bPublic">Partie publique</button>
+      <button class="btn second" id="bPrive">Partie privée</button>
     </div>
     <div id="lienBloc" class="rangee" hidden>
       <div class="lien" id="lien"></div>
@@ -556,8 +561,8 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
     if(codeLien && !codePrive) codePrive=codeLien;
     if(codeLien) ecran({titre:'On t’attend !', texte:'Tu es invité à une partie privée (20 joueurs au maximum).', pseudo:true,
       action:'Rejoindre', faire:()=>{ lirePseudo(); entrerPrive(codeLien); }, action2:'Partie publique', faire2:()=>{ lirePseudo(); entrerPublic(); }, solo:true});
-    else ecran({titre:'En ligne', texte:'Jusqu’à 20 joueurs. Le premier qui franchit la ligne gagne ; bouger quand la poupée regarde, c’est éliminé.',
-      pseudo:true, choix:true, solo:true});
+    else ecran({titre:'1, 2, 3 Soleil', texte:'Garde le doigt appuyé pour avancer, lâche dès que la poupée se retourne. En ligne, le premier qui franchit la ligne gagne.',
+      pseudo:true, choix:true});
   }
   function lirePseudo(){
     moi.nom=nomPropre($('pseudo').value.trim()||'Joueur');
@@ -856,7 +861,20 @@ a.btn{display:block;text-align:center;text-decoration:none;box-sizing:border-box
   try{ const p=localStorage.getItem('soleil-pseudo'); if(p){ $('pseudo').value=p; nommer(elMoi,p); moi.nom=nomPropre(p); } }catch(e){}
   window.__soleil={etat:()=>({phase, mode, poupee, poupeeActive, moi:{p:moi.p,etat:moi.etat}, membres:membres.size, participants:participants.length,
     joueurs:[...joueurs.values()].map(j=>({nom:j.nom,etat:j.etat,p:Math.round(j.p)})), chef:participants.length?participants.find(([id])=>{const j=joueurs.get(id); return j&&j.etat!=='parti';})?.[1]:ordre()[0].nom})};
+  // Arrivée depuis le menu principal : le son n'est débloqué qu'au premier toucher sur cette page (exigence d'iOS)
+  let sonPret=false;
+  const deverrouiller=()=>{ if(sonPret) return; sonPret=true; debloquerSon(); };
+  addEventListener('pointerdown',deverrouiller,true); addEventListener('keydown',deverrouiller,true);
+
   menu(); mesurer(); placer(moi,0); requestAnimationFrame(t=>{dernier=t; boucle(t);});
+  // « Partie publique » / « Partie privée » choisies dans le menu principal : on entre directement
+  const choixMenu=params.get('mode');
+  if(!codeLien && (choixMenu==='public' || choixMenu==='prive')){
+    history.replaceState(null,'',location.pathname);
+    moi.nom=nomPropre($('pseudo').value.trim()||'Joueur'); nommer(elMoi,moi.nom);
+    if(choixMenu==='public') entrerPublic(); else { mode='prive'; const A='abcdefghjkmnpqrstuvwxyz23456789'; codePrive=''; for(let i=0;i<6;i++) codePrive+=A[Math.floor(Math.random()*A.length)];
+      seConnecter(()=>{ abonner(RACINE+'p/'+codePrive); entrerAttente(); }); }
+  }
 })();
 </script>
 </body>
